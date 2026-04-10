@@ -8,106 +8,58 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
- * Model User merepresentasikan pengguna dalam aplikasi social media.
- * Dilengkapi dengan relasi following/followers untuk fitur sosial.
+ * Model User — dilengkapi relasi like, repost, simpan, following, followers.
  */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = [
-        'name',
-        'username',
-        'email',
-        'password',
-        'bio',
-        'profile_photo',
-    ];
+    protected $fillable = ['name', 'username', 'email', 'password', 'bio', 'profile_photo'];
+    protected $hidden   = ['password', 'remember_token'];
+    protected $casts    = ['email_verified_at' => 'datetime', 'password' => 'hashed'];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    public function posts()    { return $this->hasMany(Post::class); }
+    public function comments() { return $this->hasMany(Comment::class); }
 
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password'          => 'hashed',
-    ];
-
-    /**
-     * Relasi one-to-many: satu user dapat memiliki banyak postingan.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function posts()
-    {
-        return $this->hasMany(Post::class);
-    }
-
-    /**
-     * Relasi one-to-many: satu user dapat memiliki banyak komentar.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function comments()
-    {
-        return $this->hasMany(Comment::class);
-    }
-
-    /**
-     * Relasi many-to-many: daftar user yang diikuti oleh user ini.
-     * Menggunakan tabel pivot 'follows' dengan kolom follower_id dan following_id.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
+    /** User yang diikuti oleh user ini */
     public function following()
     {
-        return $this->belongsToMany(
-            User::class,
-            'follows',
-            'follower_id',
-            'following_id'
-        )->withTimestamps();
+        return $this->belongsToMany(User::class, 'follows', 'follower_id', 'following_id')->withTimestamps();
     }
 
-    /**
-     * Relasi many-to-many: daftar user yang mengikuti user ini (followers).
-     * Menggunakan tabel pivot 'follows' dengan kolom following_id dan follower_id.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
+    /** User yang mengikuti user ini */
     public function followers()
     {
-        return $this->belongsToMany(
-            User::class,
-            'follows',
-            'following_id',
-            'follower_id'
-        )->withTimestamps();
+        return $this->belongsToMany(User::class, 'follows', 'following_id', 'follower_id')->withTimestamps();
     }
 
-    /**
-     * Mengecek apakah user ini sedang mengikuti user lain.
-     * Digunakan untuk menentukan tampilan tombol Follow/Unfollow.
-     *
-     * @param int $userId - ID user yang ingin dicek
-     * @return bool - True jika sedang mengikuti, false jika tidak
-     */
+    /** Postingan yang di-like user ini */
+    public function likedPosts()
+    {
+        return $this->belongsToMany(Post::class, 'likes')->withTimestamps();
+    }
+
+    /** Postingan yang di-repost user ini */
+    public function repostedPosts()
+    {
+        return $this->belongsToMany(Post::class, 'reposts')->withTimestamps();
+    }
+
+    /** Postingan yang disimpan/bookmark user ini */
+    public function savedPosts()
+    {
+        return $this->belongsToMany(Post::class, 'saved_posts')->withTimestamps();
+    }
+
+    /** Cek apakah user ini sedang mengikuti user lain */
     public function isFollowing(int $userId): bool
     {
         return $this->following()->where('following_id', $userId)->exists();
     }
 
-    /**
-     * Accessor untuk mendapatkan URL lengkap foto profil.
-     *
-     * @return string|null
-     */
+    /** Accessor URL foto profil */
     public function getProfilePhotoUrlAttribute(): ?string
     {
-        if ($this->profile_photo) {
-            return asset('storage/' . $this->profile_photo);
-        }
-        return null;
+        return $this->profile_photo ? asset('storage/' . $this->profile_photo) : null;
     }
 }

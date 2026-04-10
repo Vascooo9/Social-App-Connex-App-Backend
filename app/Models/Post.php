@@ -6,94 +6,68 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Model Post merepresentasikan postingan dalam aplikasi social media.
- * Setiap postingan dapat mengandung teks, hashtag, gambar, dan file lampiran.
- *
- * @property int $id
- * @property int $user_id
- * @property string $content
- * @property string|null $image
- * @property string|null $file
- * @property string|null $file_name
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * Model Post — Postingan dengan dukungan like, repost, dan simpan.
  */
 class Post extends Model
 {
     use HasFactory;
 
-    /**
-     * Atribut yang dapat diisi secara massal.
-     * Kolom-kolom ini aman diisi melalui metode create() atau fill().
-     */
-    protected $fillable = [
-        'user_id',
-        'content',
-        'image',
-        'file',
-        'file_name',
-    ];
+    protected $fillable = ['user_id', 'content', 'image', 'file', 'file_name'];
 
-    /**
-     * Relasi many-to-one: setiap postingan dimiliki oleh satu user.
-     * Mengembalikan user pemilik postingan ini.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
+    /** Relasi ke user pemilik postingan */
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Relasi one-to-many: satu postingan dapat memiliki banyak komentar.
-     * Komentar diurutkan dari yang terbaru (descending by created_at).
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
+    /** Relasi ke komentar, diurutkan terbaru */
     public function comments()
     {
         return $this->hasMany(Comment::class)->orderBy('created_at', 'desc');
     }
 
     /**
-     * Scope untuk memfilter postingan berdasarkan hashtag tertentu.
-     * Mencari hashtag dalam konten postingan menggunakan LIKE query.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $hashtag - Kata kunci hashtag tanpa simbol '#'
-     * @return \Illuminate\Database\Eloquent\Builder
+     * Relasi many-to-many ke user yang menyukai postingan ini.
+     * Menggunakan tabel pivot 'likes'.
      */
+    public function likedBy()
+    {
+        return $this->belongsToMany(User::class, 'likes')->withTimestamps();
+    }
+
+    /**
+     * Relasi many-to-many ke user yang melakukan repost.
+     * Menggunakan tabel pivot 'reposts'.
+     */
+    public function repostedBy()
+    {
+        return $this->belongsToMany(User::class, 'reposts')->withTimestamps();
+    }
+
+    /**
+     * Relasi many-to-many ke user yang menyimpan postingan ini.
+     * Menggunakan tabel pivot 'saved_posts'.
+     */
+    public function savedBy()
+    {
+        return $this->belongsToMany(User::class, 'saved_posts')->withTimestamps();
+    }
+
+    /** Scope filter hashtag */
     public function scopeWithHashtag($query, string $hashtag)
     {
         return $query->where('content', 'LIKE', '%#' . $hashtag . '%');
     }
 
-    /**
-     * Accessor untuk mendapatkan URL lengkap gambar postingan.
-     * Mengembalikan URL asset storage jika gambar ada, null jika tidak.
-     *
-     * @return string|null
-     */
+    /** Accessor URL gambar */
     public function getImageUrlAttribute(): ?string
     {
-        if ($this->image) {
-            return asset('storage/' . $this->image);
-        }
-        return null;
+        return $this->image ? asset('storage/' . $this->image) : null;
     }
 
-    /**
-     * Accessor untuk mendapatkan URL lengkap file lampiran postingan.
-     * Mengembalikan URL asset storage jika file ada, null jika tidak.
-     *
-     * @return string|null
-     */
+    /** Accessor URL file */
     public function getFileUrlAttribute(): ?string
     {
-        if ($this->file) {
-            return asset('storage/' . $this->file);
-        }
-        return null;
+        return $this->file ? asset('storage/' . $this->file) : null;
     }
 }
