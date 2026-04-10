@@ -1,0 +1,12 @@
+## Cara Menjalankan Project
+
+### Backend
+- composer install
+- cp .env.example .env
+- php artisan key:generate
+- php artisan migrate --seed
+- php artisan serve
+
+### Frontend
+- npm install
+- npm run dev
